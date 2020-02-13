@@ -11,6 +11,7 @@
     "test": "jest"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.5",
     "jest": "^25.1.0",
     "json-schema-to-typescript": "^8.0.1",
     "tree-sitter-bash": "^0.16.0",
@@ -25,5 +26,8 @@
       "node_modules",
       "test/test.js"
     ]
+  },
+  "dependencies": {
+    "debug": "^4.1.1"
   }
 }

@@ -13,6 +13,8 @@ import {
   GrammarSchema
 } from "./types";
 
+import debug from "debug";
+debug.enable("*");
 interface ExtendedReferenceError extends ReferenceError {
   symbol: any;
 }
@@ -37,6 +39,7 @@ function alias(
   rule: RawRule | ExtendedReferenceError,
   value: string | SymbolRule | ExtendedReferenceError
 ): AliasRule {
+  debug("alias")({ arguments });
   const result: AliasRule = {
     type: Type.ALIAS,
     content: normalize(rule),
@@ -191,7 +194,6 @@ token.immediate = function(value: RawRule): TokenRule {
 // function normalize(value: RegExp): PatternRule;
 function normalize(value: RawRule | ReferenceError): Rule {
   if (value instanceof ReferenceError) throw value;
-  console.log({ value });
   switch (typeof value) {
     case "string":
       return { type: Type.STRING, value };
@@ -214,6 +216,7 @@ function RuleBuilder(ruleMap?: object | null) {
     {},
     {
       get(_, propertyName: string) {
+        debug("rulebuilder")({ propertyName, _ });
         const symbol = {
           type: Type.SYMBOL,
           name: propertyName
@@ -251,6 +254,7 @@ function _grammar<
   // if (!options) throw new Error('')
   let { externals = [] } = baseGrammar;
   if (options.externals) {
+    debug("externals")({ externals, opts: options.externals });
     if (typeof options.externals !== "function") {
       throw new Error("Grammar's 'externals' property must be a function.");
     }
@@ -293,6 +297,7 @@ function _grammar<
 
   let rules = Object.assign({}, baseGrammar.rules);
   if (options.rules) {
+    // debug("rules")({ rules, opts: options.rules });
     if (typeof options.rules !== "object") {
       throw new Error("Grammar's 'rules' property must be an object.");
     }
@@ -309,15 +314,16 @@ function _grammar<
     }
 
     for (const ruleName in options.rules) {
+      debug(`rules`)(ruleName);
       const ruleFn = options.rules[ruleName];
-      rules[ruleName] = normalize(
-        ruleFn.call(null, baseGrammar.rules as E & R)
-      );
+      rules[ruleName] = normalize(ruleFn.call(null, ruleBuilder as E & R));
     }
   }
 
   let { extras = [] } = baseGrammar;
   if (options.extras) {
+    debug("extras")({ extras, opts: options.extras });
+
     if (typeof options.extras !== "function") {
       throw new Error("Grammar's 'extras' property must be a function.");
     }
@@ -327,6 +333,8 @@ function _grammar<
 
   let { word = "" } = baseGrammar;
   if (options.word) {
+    debug("word")({ word, opts: options.word });
+
     word = (options.word.call(null, ruleBuilder) as SymbolRule).name;
     if (typeof word != "string") {
       throw new Error("Grammar's 'word' property must be a named rule.");
@@ -335,6 +343,8 @@ function _grammar<
 
   let { conflicts = [] } = baseGrammar;
   if (options.conflicts) {
+    debug("conflicts")({ conflicts, opts: options.conflicts });
+
     if (typeof options.conflicts !== "function") {
       throw new Error("Grammar's 'conflicts' property must be a function.");
     }
@@ -361,6 +371,8 @@ function _grammar<
 
   let inline = baseGrammar.inline;
   if (options.inline) {
+    debug("inline")({ inline, opts: options.inline });
+
     if (typeof options.inline !== "function") {
       throw new Error("Grammar's 'inline' property must be a function.");
     }
@@ -380,6 +392,8 @@ function _grammar<
 
   let { supertypes = [] } = baseGrammar;
   if (options.supertypes) {
+    debug("supertypes")({ supertypes, opts: options.supertypes });
+
     if (typeof options.supertypes !== "function") {
       throw new Error("Grammar's 'supertypes' property must be a function.");
     }

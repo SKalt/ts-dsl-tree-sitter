@@ -31,6 +31,6 @@ global.token = token;
     const mod = `tree-sitter-${lang}`;
     const actual = require(`${mod}/grammar.js`);
     const expected = require(`${mod}/src/grammar.json`);
-    expected(actual).toEqual(expected);
+    expect(actual).toEqual(expected);
   });
 });
