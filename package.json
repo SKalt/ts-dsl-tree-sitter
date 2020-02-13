@@ -1,0 +1,29 @@
+{
+  "name": "ts-dsl-tree-sitter",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Steven Kalt",
+  "license": "MIT",
+  "scripts": {
+    "generate-types": "node ./scripts/generate-types.js",
+    "build": "tsc --outDir ./dist ./src/dsl.ts",
+    "pretest": "yarn build",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^25.1.0",
+    "json-schema-to-typescript": "^8.0.1",
+    "tree-sitter-bash": "^0.16.0",
+    "tree-sitter-python": "^0.16.0",
+    "tree-sitter-typescript": "^0.16.1",
+    "tsdx": "^0.12.3",
+    "tslib": "^1.10.0",
+    "typescript": "^3.7.5"
+  },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules",
+      "test/test.js"
+    ]
+  }
+}
