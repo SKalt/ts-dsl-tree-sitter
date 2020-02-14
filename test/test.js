@@ -26,7 +26,18 @@ global.seq = seq;
 global.sym = sym;
 global.token = token;
 
-["bash"].forEach(lang => {
+[
+  "bash",
+  "python",
+  "php",
+  "c",
+  "cpp",
+  "java",
+  "javascript",
+  "toml",
+  "lua",
+  "typescript/typescript"
+].forEach(lang => {
   test(`correctly processed tree-sitter-${lang}`, () => {
     const mod = `tree-sitter-${lang}`;
     const actual = require(`${mod}/grammar.js`);

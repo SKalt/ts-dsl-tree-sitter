@@ -93,6 +93,8 @@ export interface TokenRule {
   content: Rule;
 }
 
+export type Named<T> = T extends { name: string } ? T : never;
+
 export interface GrammarSchema {
   name: string;
   rules: {

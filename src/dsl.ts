@@ -26,13 +26,13 @@ interface GrammarMaker<
   R extends { [K in keyof R]: K extends keyof E ? never : Rule }
 > {
   name: string;
-  externals?: ($: E) => Array<RawRule>;
-  rules: { [K in keyof R]: ($: E & R) => RawRule };
-  extras?: ($: E & R) => Array<RawRule>;
-  conflicts?: ($: E & R) => Array<Array<RawRule>>;
-  inline?: ($: E & R) => Array<RawRule>;
-  word?: ($: E & R) => RawRule;
-  supertypes?: ($: E & R) => Array<RawRule>;
+  externals?: ($: E, original?: Rule[]) => Array<RawRule>;
+  rules: { [K in keyof R]: ($: E & R, original?: Rule) => RawRule };
+  extras?: ($: E & R, original?: Rule[]) => Array<RawRule>;
+  conflicts?: ($: E & R, original?: SymbolRule[][]) => Array<Array<RawRule>>;
+  inline?: ($: E & R, original?: Rule[]) => Array<RawRule>;
+  word?: ($: E & R, original?: string) => SymbolRule;
+  supertypes?: ($: E & R, original?: SymbolRule[]) => Array<Rule>;
 }
 
 function alias(
@@ -49,7 +49,7 @@ function alias(
   if (typeof value == "string") {
     return { ...result, named: false, value };
   } else if (value instanceof ReferenceError) {
-    return { ...result, named: false, value: value.symbol.name };
+    return { ...result, named: true, value: value.symbol.name };
   } else if (typeof value.type === "string" && value.type === Type.SYMBOL) {
     return { ...result, named: true, value: value.name };
   }
@@ -169,7 +169,7 @@ function seq(...elements: RawRule[]) {
   };
 }
 
-function sym(name: string) {
+function sym(name: string): SymbolRule {
   return {
     type: Type.SYMBOL,
     name: name
@@ -189,15 +189,14 @@ token.immediate = function(value: RawRule): TokenRule {
     content: normalize(value)
   };
 };
-// function normalize<R extends Rule>(value: R): R;
-// function normalize(value: string): StringRule;
-// function normalize(value: RegExp): PatternRule;
+
 function normalize(value: RawRule | ReferenceError): Rule {
   if (value instanceof ReferenceError) throw value;
   switch (typeof value) {
     case "string":
       return { type: Type.STRING, value };
     case "undefined":
+      debugger;
       throw new Error("Undefined symbol");
   }
 
@@ -211,7 +210,7 @@ function normalize(value: RawRule | ReferenceError): Rule {
 }
 
 function RuleBuilder(ruleMap?: object | null) {
-  // TODO: ^ lowerCamelCase
+  // TODO: ^ lowerCamelCase?
   return new Proxy(
     {},
     {
@@ -236,6 +235,12 @@ function RuleBuilder(ruleMap?: object | null) {
   );
 }
 
+const mustBeFunction = (name: string, fn: any) => {
+  if (typeof fn !== "function") {
+    throw new Error(`Grammar's "${name}" property must be a function`);
+  }
+};
+
 function _grammar<
   E extends { [k: string]: Rule },
   R extends { [K in keyof R]: K extends keyof E ? never : Rule }
@@ -251,16 +256,15 @@ function _grammar<
     word: ""
   };
 
-  // if (!options) throw new Error('')
-  let { externals = [] } = baseGrammar;
-  if (options.externals) {
-    debug("externals")({ externals, opts: options.externals });
-    if (typeof options.externals !== "function") {
-      throw new Error("Grammar's 'externals' property must be a function.");
-    }
+  function processExternals(
+    { externals: original = [] }: { externals?: Rule[] } = {},
+    { externals }: GrammarMaker<E, R>
+  ) {
+    if (externals === undefined) return original;
+    mustBeFunction("externals", externals);
 
     const externalsRuleBuilder = RuleBuilder(null) as E;
-    const externalRules = options.externals.call(null, externalsRuleBuilder);
+    const externalRules = externals(externalsRuleBuilder, original);
 
     if (!Array.isArray(externalRules)) {
       throw new Error(
@@ -268,43 +272,40 @@ function _grammar<
       );
     }
 
-    externals = externalRules.map(normalize);
+    const result = externalRules.map(normalize);
+
+    return result;
   }
 
-  const ruleMap = [
-    ...Object.keys(baseGrammar.rules),
-    ...Object.keys(options.rules),
-    ...(externals as Array<{ name?: string }>)
-      .map(rule => rule.name || "")
-      .filter(Boolean)
-  ].reduce((ruleMap: { [x: string]: true }, ruleName: string) => {
-    ruleMap[ruleName] = true;
-    return ruleMap;
-  }, {});
-
-  const ruleBuilder = RuleBuilder(ruleMap) as E & R;
-
-  const { name } = options;
-  if (typeof name !== "string") {
-    throw new Error(`Grammar's 'name' property must be a string (was ${name})`);
-  }
-
-  if (!/^[a-zA-Z_]\w*$/.test(name)) {
-    throw new Error(
-      "Grammar's 'name' property must not start with a digit and cannot contain non-word characters."
-    );
-  }
-
-  let rules = Object.assign({}, baseGrammar.rules);
-  if (options.rules) {
-    // debug("rules")({ rules, opts: options.rules });
-    if (typeof options.rules !== "object") {
-      throw new Error("Grammar's 'rules' property must be an object.");
+  function processName(name: string): string {
+    if (typeof name !== "string") {
+      throw new Error(
+        `Grammar's 'name' property must be a string (was ${name})`
+      );
     }
 
-    let errors = Object.entries(options.rules)
-      /*errors = errors*/ .filter(([, rule]) => typeof rule !== "function")
-      /*errors = errors*/ .map(([ruleName]) => `'${ruleName}'`);
+    if (!/^[a-zA-Z_]\w*$/.test(name)) {
+      throw new Error(
+        "Grammar's 'name' property must not start with a digit and cannot contain non-word characters."
+      );
+    }
+    return name;
+  }
+
+  function processRules(
+    { rules: original }: { rules: { [k: string]: Rule } },
+    { rules }: GrammarMaker<E, R>,
+    ruleBuilder: E & R
+  ) {
+    if (typeof rules !== "object") {
+      throw new Error("Grammar's 'rules' property must be an object.");
+    }
+    if (Object.keys(rules).length == 0) {
+      throw new Error("Grammar must have at least one rule.");
+    }
+    let errors = Object.entries(rules)
+      .filter(([, rule]) => typeof rule !== "function")
+      .map(([ruleName]) => `'${ruleName}'`);
     if (errors.length) {
       const invalidRules = errors.join(", ");
       const are = errors.length < 2 ? "is" : "are";
@@ -313,112 +314,124 @@ function _grammar<
       );
     }
 
+    original = { ...original };
+    const results = { ...original };
     for (const ruleName in options.rules) {
-      debug(`rules`)(ruleName);
-      const ruleFn = options.rules[ruleName];
-      rules[ruleName] = normalize(ruleFn.call(null, ruleBuilder as E & R));
-    }
-  }
-
-  let { extras = [] } = baseGrammar;
-  if (options.extras) {
-    debug("extras")({ extras, opts: options.extras });
-
-    if (typeof options.extras !== "function") {
-      throw new Error("Grammar's 'extras' property must be a function.");
-    }
-
-    extras = options.extras.call(null, ruleBuilder).map(normalize);
-  }
-
-  let { word = "" } = baseGrammar;
-  if (options.word) {
-    debug("word")({ word, opts: options.word });
-
-    word = (options.word.call(null, ruleBuilder) as SymbolRule).name;
-    if (typeof word != "string") {
-      throw new Error("Grammar's 'word' property must be a named rule.");
-    }
-  }
-
-  let { conflicts = [] } = baseGrammar;
-  if (options.conflicts) {
-    debug("conflicts")({ conflicts, opts: options.conflicts });
-
-    if (typeof options.conflicts !== "function") {
-      throw new Error("Grammar's 'conflicts' property must be a function.");
-    }
-    // let { conflicts = [] } = baseGrammar;
-    // const baseConflictRules = conflicts.map(conflict => conflict.map(sym));
-    const conflictRules = options.conflicts.call(null, ruleBuilder);
-
-    if (!Array.isArray(conflictRules)) {
-      throw new Error(
-        "Grammar's conflicts must be an array of arrays of rules."
+      results[ruleName] = normalize(
+        options.rules[ruleName](ruleBuilder, original[ruleName])
       );
     }
+    return results;
+  }
 
-    conflicts = conflictRules.map(conflictSet => {
-      if (!Array.isArray(conflictSet)) {
-        throw new Error(
-          "Grammar's conflicts must be an array of arrays of rules."
-        );
-      }
+  function procesExtras(
+    { extras: original }: GrammarSchema,
+    { extras }: GrammarMaker<E, R>,
+    ruleBuilder: E & R
+  ) {
+    if (!extras) return original;
+    mustBeFunction("extras", extras);
+    return extras(ruleBuilder, original).map(normalize);
+  }
 
-      return conflictSet.map(symbol => (normalize(symbol) as SymbolRule).name);
+  function processWord(
+    { word: original = "" }: GrammarSchema,
+    { word }: GrammarMaker<E, R>,
+    ruleBuilder: E & R
+  ) {
+    if (!word) return original;
+    const result = (word(ruleBuilder, original) as SymbolRule).name;
+    if (typeof result != "string") {
+      throw new Error("Grammar's 'word' property must be a named rule.");
+    }
+    return result;
+  }
+
+  function processConflicts(
+    { conflicts: original = [] }: GrammarSchema,
+    { conflicts }: GrammarMaker<E, R>,
+    ruleBuilder: E & R
+  ) {
+    if (!conflicts) return original;
+    mustBeFunction("conflicts", conflicts);
+    const conflictRules = conflicts(
+      ruleBuilder,
+      original.map(conflict => conflict.map(sym))
+    );
+    const errorMessage =
+      "Grammar's conflicts must be an array of arrays of rules.";
+    if (!Array.isArray(conflictRules)) throw new Error(errorMessage);
+
+    return conflictRules.map(conflictSet => {
+      if (!Array.isArray(conflictSet)) throw new Error(errorMessage);
+      const result = conflictSet.map(
+        symbol => (normalize(symbol) as SymbolRule).name
+      );
+      return result;
     });
   }
 
-  let inline = baseGrammar.inline;
-  if (options.inline) {
-    debug("inline")({ inline, opts: options.inline });
-
-    if (typeof options.inline !== "function") {
-      throw new Error("Grammar's 'inline' property must be a function.");
-    }
-    // const baseInlineRules = (baseGrammar.inline || []).map(sym);
-    const inlineRules = options.inline.call(
-      null,
-      ruleBuilder
-      // baseInlineRules,
-    ) as SymbolRule[];
+  function processInline(
+    { inline: original = [] }: GrammarSchema,
+    { inline }: GrammarMaker<E, R>,
+    ruleBuilder: E & R
+  ) {
+    if (!inline) return original;
+    mustBeFunction("inline", inline);
+    const baseInlineRules = (original || []).map(sym);
+    const inlineRules = inline(ruleBuilder, baseInlineRules) as SymbolRule[];
 
     if (!Array.isArray(inlineRules)) {
-      throw new Error("Grammar's inline must be an array of rules.");
+      throw new Error("Grammar's 'inline' property must be an array of rules.");
     }
 
-    inline = inlineRules.map(symbol => symbol.name);
+    return inlineRules.map(symbol => symbol.name);
   }
 
-  let { supertypes = [] } = baseGrammar;
-  if (options.supertypes) {
-    debug("supertypes")({ supertypes, opts: options.supertypes });
-
-    if (typeof options.supertypes !== "function") {
+  function processSupertypes(
+    { supertypes: original }: GrammarSchema,
+    { supertypes }: GrammarMaker<E, R>,
+    ruleBuilder: E & R
+  ) {
+    if (!supertypes) return original;
+    if (typeof supertypes !== "function") {
       throw new Error("Grammar's 'supertypes' property must be a function.");
     }
-
-    // const baseSupertypeRules = (baseGrammar.supertypes || []).map(sym);
-    const supertypeRules = options.supertypes.call(
-      null,
-      ruleBuilder
-      // baseSupertypeRules,
-    ) as SymbolRule[];
-
+    let baseSupertypeRules = (original || []).map(sym);
+    const supertypeRules = supertypes(ruleBuilder, baseSupertypeRules);
     if (!Array.isArray(supertypeRules)) {
       throw new Error("Grammar's supertypes must be an array of rules.");
     }
-
-    supertypes = supertypeRules.map(symbol => symbol.name);
+    return supertypeRules.map(rule => {
+      if ("name" in rule) return rule.name;
+      else
+        throw new Error(
+          `supertype ${JSON.stringify(rule, null, 2)} cannot be an alias`
+        );
+    });
   }
+  const name = processName(options.name);
+  const externals = processExternals(baseGrammar, options);
+  const ruleMap = [
+    ...Object.keys(baseGrammar.rules),
+    ...Object.keys(options.rules),
+    ...externals.map(rule => ("name" in rule ? rule.name : "")).filter(Boolean)
+  ].reduce((ruleMap: { [x: string]: true }, ruleName: string) => {
+    ruleMap[ruleName] = true;
+    return ruleMap;
+  }, {});
 
-  if (Object.keys(rules).length == 0) {
-    throw new Error("Grammar must have at least one rule.");
-  }
+  const ruleBuilder = RuleBuilder(ruleMap) as E & R;
 
+  const rules = processRules(baseGrammar, options, ruleBuilder);
+  const extras = procesExtras(baseGrammar, options, ruleBuilder);
+  const supertypes = processSupertypes(baseGrammar, options, ruleBuilder);
+  const word = processWord(baseGrammar, options, ruleBuilder);
+  const conflicts = processConflicts(baseGrammar, options, ruleBuilder);
+  const inline = processInline(baseGrammar, options, ruleBuilder);
   return {
     name,
-    word,
+    ...(word ? { word } : {}),
     rules,
     extras,
     conflicts,
@@ -440,9 +453,7 @@ function checkArguments(ruleCount: number, callerName: string, suffix = "") {
 }
 
 function checkPrecedence(value: any) {
-  if (value === null) {
-    throw new Error("Missing precedence value");
-  }
+  if (value === null) throw new Error("Missing precedence value");
 }
 
 function grammar<
