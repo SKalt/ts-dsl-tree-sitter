@@ -13,8 +13,6 @@ import {
   GrammarSchema
 } from "./types";
 
-import debug from "debug";
-debug.enable("*");
 interface ExtendedReferenceError extends ReferenceError {
   symbol: any;
 }
@@ -39,7 +37,6 @@ function alias(
   rule: RawRule | ExtendedReferenceError,
   value: string | SymbolRule | ExtendedReferenceError
 ): AliasRule {
-  debug("alias")({ arguments });
   const result: AliasRule = {
     type: Type.ALIAS,
     content: normalize(rule),
@@ -196,7 +193,6 @@ function normalize(value: RawRule | ReferenceError): Rule {
     case "string":
       return { type: Type.STRING, value };
     case "undefined":
-      debugger;
       throw new Error("Undefined symbol");
   }
 
@@ -215,7 +211,6 @@ function RuleBuilder(ruleMap?: object | null) {
     {},
     {
       get(_, propertyName: string) {
-        debug("rulebuilder")({ propertyName, _ });
         const symbol = {
           type: Type.SYMBOL,
           name: propertyName
