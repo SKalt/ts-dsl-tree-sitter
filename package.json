@@ -7,7 +7,6 @@
   "scripts": {
     "generate-types": "node ./scripts/generate-types.js",
     "build": "tsc --outDir ./dist ./src/dsl.ts",
-    "pretest": "yarn build",
     "test": "jest"
   },
   "devDependencies": {
@@ -25,11 +24,13 @@
     "tree-sitter-python": "^0.16.0",
     "tree-sitter-toml": "^0.2.0",
     "tree-sitter-typescript": "^0.16.1",
+    "ts-jest": "^25.3.0",
     "tsdx": "^0.12.3",
     "tslib": "^1.10.0",
     "typescript": "^3.7.5"
   },
   "jest": {
+    "preset": "ts-jest",
     "transformIgnorePatterns": [
       "node_modules"
     ]

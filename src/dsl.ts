@@ -169,7 +169,7 @@ function seq(...elements: RawRule[]) {
 function sym(name: string): SymbolRule {
   return {
     type: Type.SYMBOL,
-    name: name
+    name,
   };
 }
 
@@ -309,7 +309,6 @@ function _grammar<
       );
     }
 
-    original = { ...original };
     const results = { ...original };
     for (const ruleName in options.rules) {
       results[ruleName] = normalize(
@@ -477,5 +476,5 @@ export {
   repeat1,
   seq,
   sym,
-  token
+  token,
 };
