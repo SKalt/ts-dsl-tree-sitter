@@ -29,12 +29,6 @@
     "tslib": "^1.10.0",
     "typescript": "^3.7.5"
   },
-  "jest": {
-    "preset": "ts-jest",
-    "transformIgnorePatterns": [
-      "node_modules"
-    ]
-  },
   "dependencies": {
     "debug": "^4.1.1"
   }

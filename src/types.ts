@@ -4,7 +4,6 @@ export type Rule =
   | BlankRule
   | ChoiceRule
   | FieldRule
-  | Repeat1Rule
   | RepeatRule
   | Repeat1Rule
   | PatternRule
@@ -64,10 +63,6 @@ export interface PrecRule {
   value: number;
   content: Rule;
 }
-export interface Repeat1Rule {
-  type: RuleType.REPEAT1;
-  content: Rule;
-}
 export interface RepeatRule {
   type: RuleType.REPEAT;
   content: Rule;
@@ -93,17 +88,35 @@ export interface TokenRule {
   content: Rule;
 }
 
-export type Named<T> = T extends { name: string } ? T : never;
-
 export interface GrammarSchema {
+  /** the name of the grammar */
   name: string;
   rules: {
     [k: string]: Rule;
   };
+  /**
+   * tokens that may appear anywhere in the language.
+   * This is often used for whitespace and comments.
+   * The default value of extras is to accept whitespace.
+   * To control whitespace explicitly, specify extras: $ => [] in your grammar.
+   */
   extras?: Rule[];
+  /**
+   * token names which can be returned by an external scanner.
+   * External scanners allow you to write custom C code which runs during the lexing process in order to handle lexical rules (e.g. Python’s indentation tokens) that cannot be described by regular expressions.
+   */
   externals?: Array<Rule>;
+  /** rule names that should be automatically removed from the grammar by replacing all of their usages with a copy of their definition. This is useful for rules that are used in multiple places but for which you don’t want to create syntax tree nodes at runtime. */
   inline?: string[];
+  /**
+   * an array of arrays of rule names.
+   * Each inner array represents a set of rules that’s involved in an LR(1) conflict that is intended to exist in the grammar.
+   * When these conflicts occur at runtime, Tree-sitter will use the GLR algorithm to explore all of the possible interpretations.
+   * If multiple parses end up succeeding, Tree-sitter will pick the subtree whose corresponding rule has the highest total dynamic precedence.
+   */
   conflicts?: string[][];
+  /** the name of a token that will match keywords for the purpose of the keyword extraction optimization. */
   word?: string;
+  /** an array of hidden rule names which should be considered to be ‘supertypes’ in the generated node types file. */
   supertypes?: string[];
 }
