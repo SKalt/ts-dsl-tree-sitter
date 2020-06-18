@@ -1,7 +1,6 @@
-import { RawRule, Rule, normalize, isRule } from "./rules";
+import { RawRule, Rule, normalize, isRule, validName } from "./rules";
 import { RuleType, GrammarSchema } from "../types";
 // needed to distinguish the "Rule" types from ./rules and ./types
-
 type Namespace = Record<string, any>;
 type Fn<Arg, Result> = (arg: Arg, namespace: Namespace, log: Error[]) => Result;
 
@@ -28,9 +27,6 @@ const fallback = <I, O>(
   fn: Fn<I, O>
 ): Fn<I, O> => (arg, ...params) =>
   check(arg, ...params) ? fn(arg, ...params) : revertTo;
-
-export const validName = (name: any): name is string =>
-  typeof name === "string" && /^[a-zA-Z_]\w*/.test(name);
 
 const validSymbolName: Fn<any, boolean> = checkThat(
   validName,

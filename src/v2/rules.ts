@@ -16,7 +16,8 @@ import {
   GrammarSchema
 } from "../types";
 
-import { validName } from "./validators";
+export const validName = (name: any): name is string =>
+  typeof name === "string" && /^[a-zA-Z_]\w*/.test(name);
 
 const ruleBrand = Symbol("isRule");
 type Branded = { [ruleBrand]: true };
