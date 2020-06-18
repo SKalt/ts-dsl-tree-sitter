@@ -7,6 +7,7 @@
   "scripts": {
     "generate-types": "node ./scripts/generate-types.js",
     "build": "tsc --outDir ./dist ./src/dsl.ts",
+    "build-v2": "tsc --outDir ./dist/v2 ./src/v2/index.ts", 
     "test": "jest"
   },
   "devDependencies": {
