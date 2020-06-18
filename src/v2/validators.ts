@@ -1,5 +1,5 @@
 import { RawRule, Rule, normalize, isRule } from "./rules";
-import { RuleType, GrammarSchema, Rule as AnyRule } from "../types";
+import { RuleType, GrammarSchema } from "../types";
 // needed to distinguish the "Rule" types from ./rules and ./types
 
 type Namespace = Record<string, any>;
@@ -18,7 +18,7 @@ const checkThat = <T>(
 
 const checkArray = (ctx: string) =>
   checkThat(
-    (arg) => Array.isArray(arg),
+    arg => Array.isArray(arg),
     () => `invalid ${ctx}: must be an array`
   );
 
@@ -34,7 +34,7 @@ export const validName = (name: any): name is string =>
 
 const validSymbolName: Fn<any, boolean> = checkThat(
   validName,
-  (name) => `invalid symbol name '${name}': should match /^[a-zA-Z_]\\w*/`
+  name => `invalid symbol name '${name}': should match /^[a-zA-Z_]\\w*/`
 );
 
 const log = (errors: Error[]) => (msg: string) => errors.push(new Error(msg));
@@ -51,14 +51,14 @@ const shouldBeAnObject = <R>(context: string, to: R, fn: Fn<Namespace, R>) =>
   fallback(
     to,
     checkThat(
-      (arg) => typeof arg === "object" && !Array.isArray(arg),
+      arg => typeof arg === "object" && !Array.isArray(arg),
       () => `${context} must be an object`
     ),
     fn
   );
 
 const validateName = (context: string) =>
-  checkThat<any>(validName, (name) => `invalid name in ${context}: '${name}'`);
+  checkThat<any>(validName, name => `invalid name in ${context}: '${name}'`);
 
 const normalizable: Fn<any, Rule | false> = (arg, _, errors) => {
   try {
@@ -81,12 +81,12 @@ const shouldCheckNamespace = (fn: Fn<string, any>): Fn<Rule, any> => (
 const nameInNamespace = (context: string): Fn<string, boolean> =>
   checkThat(
     (name, namespace) => name in namespace,
-    (name) => `invalid ${context}: name '${name}' not in namespace`
+    name => `invalid ${context}: name '${name}' not in namespace`
   );
 
 const nameNotInNamespace: Fn<string, boolean> = checkThat(
   (name, namespace) => !(name in namespace),
-  (name) => `name ${name} has already been declared in the namespace`
+  name => `name ${name} has already been declared in the namespace`
 );
 
 const validateNameMatch = (rule: Rule, name: string, errors: Error[]) => {
@@ -137,8 +137,8 @@ const validateRules: Fn<any, GrammarSchema["rules"]> = shouldBeAnObject(
 
 const validateInlines = canBeUndefined<any, string[]>([])(
   shouldBeAnArray("inline", [] as string[], (inlines, ...params) => {
-    const results = inlines.filter((name) => validSymbolName(name, ...params));
-    results.forEach((name) => nameInNamespace("inline")(name, ...params));
+    const results = inlines.filter(name => validSymbolName(name, ...params));
+    results.forEach(name => nameInNamespace("inline")(name, ...params));
     return results;
   })
 );
@@ -148,7 +148,7 @@ const validateSupertypes = canBeUndefined<any, string[]>([])(
     const results = supertypes.filter((name): name is string =>
       validSymbolName(name, ...params)
     );
-    results.forEach((name) => nameInNamespace("supertype")(name, ...params));
+    results.forEach(name => nameInNamespace("supertype")(name, ...params));
     return results;
   })
 );
@@ -156,9 +156,9 @@ const validateSupertypes = canBeUndefined<any, string[]>([])(
 const validateExtras = canBeUndefined<any, Rule[]>([normalize(/\s/)])(
   shouldBeAnArray("extras", [] as Rule[], (extras, namespace, errors) => {
     const results: Rule[] = extras
-      .map((extra) => normalizable(extra, namespace, errors))
+      .map(extra => normalizable(extra, namespace, errors))
       .filter((extra): extra is Rule => isRule(extra));
-    results.forEach((rule) =>
+    results.forEach(rule =>
       shouldCheckNamespace(nameNotInNamespace)(rule, namespace, errors)
     );
     return results;
@@ -169,20 +169,20 @@ const validateConflicts = canBeUndefined<any, string[][]>([])(
   shouldBeAnArray("conflicts", [] as string[][], (conflicts, ...params) => {
     const isArray = checkArray("conflict");
     const atLeastTwoLong = checkThat<any[]>(
-      (conflict) => conflict.length >= 2,
-      (conflict) => `invalid conflict ${conflict} of length ${conflict.length}`
+      conflict => conflict.length >= 2,
+      conflict => `invalid conflict ${conflict} of length ${conflict.length}`
     );
 
     return conflicts
       .filter((conflict): conflict is any[] => isArray(conflict, ...params))
-      .map((conflict) =>
+      .map(conflict =>
         conflict.filter(
           (name): name is string =>
             validateName("conflict")(name, ...params) &&
             nameInNamespace("conflict")(name, ...params)
         )
       )
-      .filter((conflict) => atLeastTwoLong(conflict, ...params));
+      .filter(conflict => atLeastTwoLong(conflict, ...params));
   })
 );
 
@@ -198,12 +198,12 @@ const validateWord: Fn<any, string | undefined> = (word, ...params) => {
 };
 
 export function grammar<
-  E extends Record<string, RawRule>,
-  R extends { [K in keyof R]: K extends keyof E ? never : () => RawRule },
+  E extends Record<string, RawRule> = {},
+  R extends { [K in keyof R]: K extends keyof E ? never : () => RawRule } = {},
   NameInNamespace extends keyof R | keyof E = keyof R | keyof E
 >(options: {
   name: string;
-  externals: E;
+  externals?: E;
   rules: R;
   word?: string;
   supertypes?: Array<NameInNamespace>;
@@ -218,13 +218,13 @@ export function grammar<
     name: validateName("name")(options.name, ...params)
       ? options.name
       : "INVALID",
-    externals: validateExternals(options.externals, ...params),
+    externals: validateExternals(options.externals || {}, ...params),
     rules: validateRules(options.rules, ...params),
     inline: validateInlines(options.inline, ...params),
     extras: validateExtras(options.extras, ...params),
     conflicts: validateConflicts(options.conflicts, ...params),
     word: validateWord(options.word, ...params),
-    supertypes: validateSupertypes(options.supertypes, ...params),
+    supertypes: validateSupertypes(options.supertypes, ...params)
   };
   if (errors.length) console.error(`${errors.length} errors:`, ...errors);
   return result;
