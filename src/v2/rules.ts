@@ -13,7 +13,7 @@ import {
   TokenRule as Token,
   PrecRule as Prec,
   Rule as AnyRule,
-  GrammarSchema,
+  GrammarSchema
 } from "../types";
 
 import { validName } from "./validators";
@@ -21,7 +21,12 @@ import { validName } from "./validators";
 const ruleBrand = Symbol("isRule");
 type Branded = { [ruleBrand]: true };
 export type Rule<R extends AnyRule = AnyRule> = R & Branded; // ruleBrand doesn't show up in JSON.stringify
-export type RawRule = string | RegExp | Rule | ((...args: any[]) => Rule);
+export type RawRule =
+  | string
+  | RegExp
+  | Rule
+  | ((...args: any[]) => Rule)
+  | (() => string | RegExp | Rule);
 
 /**
  * This function causes the given rule to appear with an alternative name in the syntax tree.
@@ -37,7 +42,7 @@ export const alias = (rule: Rule, name: string | Rule): Rule<Alias> => {
       content: normalize(rule),
       named: false,
       value: name,
-      [ruleBrand]: true,
+      [ruleBrand]: true
     };
   } else if (name && "name" in name) {
     return {
@@ -45,7 +50,7 @@ export const alias = (rule: Rule, name: string | Rule): Rule<Alias> => {
       type: RuleType.ALIAS,
       content: normalize(rule),
       named: true,
-      value: name.name, // TODO: nicer syntax
+      value: name.name // TODO: nicer syntax
     };
   } else {
     throw new Error(`Invalid alias target ${name}`);
@@ -54,7 +59,7 @@ export const alias = (rule: Rule, name: string | Rule): Rule<Alias> => {
 
 export const blank = (): Rule<Blank> => ({
   type: RuleType.BLANK,
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -64,7 +69,7 @@ export const blank = (): Rule<Blank> => ({
 export const choice = (...rules: RawRule[]): Rule<Choice> => ({
   type: RuleType.CHOICE,
   members: rules.map(normalize),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -77,7 +82,7 @@ export const field = (name: string, rule: RawRule): Rule<Field> => ({
   type: RuleType.FIELD,
   name: name,
   content: normalize(rule),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -100,7 +105,7 @@ export const prec = (rule: RawRule, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC,
   value,
   content: normalize(rule),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -115,7 +120,7 @@ prec.left = (rule: RawRule, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_LEFT,
   value,
   content: normalize(rule),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -127,7 +132,7 @@ prec.right = (rule: RawRule, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_RIGHT,
   value,
   content: normalize(rule),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -142,7 +147,7 @@ prec.dynamic = (rule: RawRule, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_DYNAMIC,
   value,
   content: normalize(rule),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -152,7 +157,7 @@ prec.dynamic = (rule: RawRule, value: number = 0): Rule<Prec> => ({
 export const repeat = (rule: RawRule): Rule<Repeat> => ({
   type: RuleType.REPEAT,
   content: normalize(rule),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -162,7 +167,7 @@ export const repeat = (rule: RawRule): Rule<Repeat> => ({
 export const repeat1 = (rule: RawRule): Rule<Repeat1> => ({
   type: RuleType.REPEAT1,
   content: normalize(rule),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -176,14 +181,14 @@ export const seq = (...rules: RawRule[]): Rule<Seq> => {
   return {
     type: RuleType.SEQ,
     members: rules.map(normalize),
-    [ruleBrand]: true,
+    [ruleBrand]: true
   };
 };
 
 export const sym = (name: string): Rule<Symbolic> => ({
   type: RuleType.SYMBOL,
   name,
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 /**
@@ -196,19 +201,19 @@ export const sym = (name: string): Rule<Symbolic> => ({
 export const token = (value: RawRule): Rule<Token> => ({
   type: RuleType.TOKEN,
   content: normalize(value),
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 export const str = (value: string): Rule<StringRule> => ({
   type: RuleType.STRING,
   value,
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 export const pattern = (re: RegExp): Rule<Pattern> => ({
   type: RuleType.PATTERN,
   value: re.source,
-  [ruleBrand]: true,
+  [ruleBrand]: true
 });
 
 export const isRule = (x: any): x is Rule =>
@@ -236,7 +241,7 @@ export const fromGrammar = (grammar: GrammarSchema) => {
     (acc, value) =>
       "name" in value
         ? Object.assign(acc, {
-            [value.name]: () => ({ ...value, [ruleBrand]: true }),
+            [value.name]: () => ({ ...value, [ruleBrand]: true })
           })
         : acc, // TODO: handle STRING external rules
     {} as Record<string, () => AnyRule>
@@ -245,6 +250,6 @@ export const fromGrammar = (grammar: GrammarSchema) => {
 };
 
 export const makeNamedFunction = (name: string) =>
-  ({ [name]: function () {} }[name]);
+  ({ [name]: function() {} }[name]);
 
 export const external = (name: string) => makeNamedFunction(name);
