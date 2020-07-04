@@ -13,13 +13,14 @@ import {
   TokenRule as Token,
   PrecRule as Prec,
   Rule as AnyRule,
-  GrammarSchema
+  GrammarSchema,
 } from "../types";
 
 export const validName = (name: any): name is string =>
   typeof name === "string" && /^[a-zA-Z_]\w*/.test(name);
 
 export type Rule<R extends AnyRule = AnyRule> = R;
+export type RuleOrLiteral =
   | string
   | RegExp
   | Rule
@@ -61,7 +62,7 @@ export const blank = (): Rule<Blank> => ({
  * This function creates a rule that matches one of a set of possible rules. The order of the arguments does not matter. This is analogous to the | (pipe) operator in EBNF notation.
  * @param rules
  */
-export const choice = (...rules: RawRule[]): Rule<Choice> => ({
+export const choice = (...rules: RuleOrLiteral[]): Rule<Choice> => ({
   type: RuleType.CHOICE,
   members: rules.map(normalize),
 });
@@ -72,7 +73,7 @@ export const choice = (...rules: RawRule[]): Rule<Choice> => ({
  * @param name
  * @param rule
  */
-export const field = (name: string, rule: RawRule): Rule<Field> => ({
+export const field = (name: string, rule: RuleOrLiteral): Rule<Field> => ({
   type: RuleType.FIELD,
   name: name,
   content: normalize(rule),
@@ -82,7 +83,7 @@ export const field = (name: string, rule: RawRule): Rule<Field> => ({
  * creates a rule that matches zero or one occurrence of a given rule it is analogous to the `[x]` (square bracket) syntax in EBNF notation.
  * @param value
  */
-export const optional = (value: RawRule): Rule<Choice> => {
+export const optional = (value: RuleOrLiteral): Rule<Choice> => {
   return choice(value, blank());
 };
 
@@ -94,7 +95,7 @@ export const optional = (value: RawRule): Rule<Choice> => {
  * @param rule
  * @param value
  */
-export const prec = (rule: RawRule, value: number = 0): Rule<Prec> => ({
+export const prec = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC,
   value,
   content: normalize(rule),
@@ -108,7 +109,7 @@ export const prec = (rule: RawRule, value: number = 0): Rule<Prec> => ({
  * @param rule
  * @param value
  */
-prec.left = (rule: RawRule, value: number = 0): Rule<Prec> => ({
+prec.left = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_LEFT,
   value,
   content: normalize(rule),
@@ -119,7 +120,7 @@ prec.left = (rule: RawRule, value: number = 0): Rule<Prec> => ({
  * @param rule
  * @param value
  */
-prec.right = (rule: RawRule, value: number = 0): Rule<Prec> => ({
+prec.right = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_RIGHT,
   value,
   content: normalize(rule),
@@ -133,7 +134,7 @@ prec.right = (rule: RawRule, value: number = 0): Rule<Prec> => ({
  * @param rule
  * @param value
  */
-prec.dynamic = (rule: RawRule, value: number = 0): Rule<Prec> => ({
+prec.dynamic = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_DYNAMIC,
   value,
   content: normalize(rule),
@@ -143,7 +144,7 @@ prec.dynamic = (rule: RawRule, value: number = 0): Rule<Prec> => ({
  * creates a rule that matches zero-or-more occurrences of a given rule. It is analogous to the `{x}` (curly brace) syntax in EBNF notation.
  * @param rule
  */
-export const repeat = (rule: RawRule): Rule<Repeat> => ({
+export const repeat = (rule: RuleOrLiteral): Rule<Repeat> => ({
   type: RuleType.REPEAT,
   content: normalize(rule),
 });
@@ -152,7 +153,7 @@ export const repeat = (rule: RawRule): Rule<Repeat> => ({
  * creates a rule that matches one-or-more occurrences of a given rule. The previous `repeat` rule is implemented in terms of `repeat1` but is included because it is very commonly used.
  * @param rule
  */
-export const repeat1 = (rule: RawRule): Rule<Repeat1> => ({
+export const repeat1 = (rule: RuleOrLiteral): Rule<Repeat1> => ({
   type: RuleType.REPEAT1,
   content: normalize(rule),
 });
@@ -163,7 +164,7 @@ export const repeat1 = (rule: RawRule): Rule<Repeat1> => ({
  * in EBNF notation.
  * @param rules
  */
-export const seq = (...rules: RawRule[]): Rule<Seq> => {
+export const seq = (...rules: RuleOrLiteral[]): Rule<Seq> => {
   // TODO: validate args
   return {
     type: RuleType.SEQ,
@@ -183,7 +184,7 @@ export const sym = (name: string): Rule<Symbolic> => ({
  * The token function allows you to express a complex rule using the functions described above (rather than as a single regular expression) but still have Tree-sitter treat it as a single token.
  * @param value
  */
-export const token = (value: RawRule): Rule<Token> => ({
+export const token = (value: RuleOrLiteral): Rule<Token> => ({
   type: RuleType.TOKEN,
   content: normalize(value),
 });
@@ -232,6 +233,6 @@ export const fromGrammar = (grammar: GrammarSchema) => {
 };
 
 export const makeNamedFunction = (name: string) =>
-  ({ [name]: function() {} }[name]);
+  ({ [name]: function () {} }[name]);
 
 export const external = (name: string) => makeNamedFunction(name);
