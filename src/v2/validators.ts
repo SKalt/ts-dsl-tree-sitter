@@ -111,22 +111,34 @@ const validateExternals = shouldBeAnObject(
   }
 );
 
+const findAllSymbols = (r: Rule, symbols: Set<string> = new Set()) => {
+  if (r.type == "SYMBOL") symbols.add(r.name);
+  let children = "members" in r ? r.members : "content" in r ? [r.content] : [];
+  children.forEach((r) => findAllSymbols(r, symbols));
+  return symbols;
+};
+
 const validateRules: Fn<any, GrammarSchema["rules"]> = shouldBeAnObject(
   "rules",
   {} as Record<string, Rule>,
   (rules, namespace, errors) => {
     const results: Record<string, Rule> = {};
+    let allSymbolicReferences = new Set<string>();
     Object.entries(rules).forEach(([name, raw]) => {
       if (typeof raw !== "function")
         log(errors)(`rule must be a function, was ${raw}`);
       else {
         let rule = normalizable(raw(), namespace, errors);
         if (isRule(rule)) {
+          allSymbolicReferences = findAllSymbols(rule, allSymbolicReferences);
           results[name] = rule;
           namespace[name] = "rule";
         }
       }
     });
+    allSymbolicReferences.forEach((ref) =>
+      nameInNamespace("rules")(ref, namespace, errors)
+    );
     return results;
   }
 );
