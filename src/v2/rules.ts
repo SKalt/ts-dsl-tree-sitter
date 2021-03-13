@@ -92,10 +92,10 @@ export const optional = (value: RuleOrLiteral): Rule<Choice> => {
  * When two rules overlap in a way that represents either a true ambiguity or a local ambiguity given one token of lookahead, Tree-sitter will try to resolve the conflict by matching the rule with the higher precedence.
  * The default precedence of all rules is zero.
  * This works similarly to the precedence directives in Yacc grammars.
- * @param rule
  * @param value
+ * @param rule
  */
-export const prec = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
+export const prec = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
   type: RuleType.PREC,
   value,
   content: normalize(rule),
@@ -106,10 +106,10 @@ export const prec = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
  * When an LR(1) conflict arises in which all of the rules have the same numerical precedence, Tree-sitter will consult the rules’ associativity.
  * If there is a left-associative rule, Tree-sitter will prefer matching a rule that ends earlier.
  * This works similarly to associativity directives in Yacc grammars.
- * @param rule
  * @param value
+ * @param rule
  */
-prec.left = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
+prec.left = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
   type: RuleType.PREC_LEFT,
   value,
   content: normalize(rule),
@@ -117,10 +117,10 @@ prec.left = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
 
 /**
  * Right Associativity: like @see prec.left, but it instructs Tree-sitter to prefer matching a rule that ends later.
- * @param rule
  * @param value
+ * @param rule
  */
-prec.right = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
+prec.right = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
   type: RuleType.PREC_RIGHT,
   value,
   content: normalize(rule),
@@ -131,10 +131,10 @@ prec.right = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
  * This is only necessary when handling a conflict dynamically using the the conflicts field in the grammar, and when there is a genuine ambiguity: multiple rules correctly match a given piece of code.
  * In that event, Tree-sitter compares the total dynamic precedence associated with each rule, and selects the one with the highest total.
  * This is similar to dynamic precedence directives in Bison grammars.
- * @param rule
  * @param value
+ * @param rule
  */
-prec.dynamic = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
+prec.dynamic = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
   type: RuleType.PREC_DYNAMIC,
   value,
   content: normalize(rule),
@@ -186,6 +186,11 @@ export const sym = (name: string): Rule<Symbolic> => ({
  */
 export const token = (value: RuleOrLiteral): Rule<Token> => ({
   type: RuleType.TOKEN,
+  content: normalize(value),
+});
+
+token.immediate = (value: RuleOrLiteral): Rule<Token> => ({
+  type: RuleType.IMMEDIATE_TOKEN,
   content: normalize(value),
 });
 

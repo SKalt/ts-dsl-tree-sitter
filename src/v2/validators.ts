@@ -160,7 +160,7 @@ const validateSupertypes = canBeUndefined<any, string[]>([])(
     return results;
   })
 );
-
+/** by default, only whitespace are extras */
 const validateExtras = canBeUndefined<any, Rule[]>([normalize(/\s/)])(
   shouldBeAnArray("extras", [] as Rule[], (extras, namespace, errors) => {
     const results: Rule[] = extras
@@ -169,7 +169,7 @@ const validateExtras = canBeUndefined<any, Rule[]>([normalize(/\s/)])(
     results.forEach((rule) =>
       shouldCheckNamespace(nameNotInNamespace)(rule, namespace, errors)
     );
-    return results;
+    return results.length === 0 ? [normalize(/s/)] : results;
   })
 );
 
