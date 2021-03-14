@@ -211,9 +211,13 @@ export function normalize(arg: any): Rule {
   if (isRule(arg)) return arg;
   else if (arg instanceof RegExp) return pattern(arg);
   else if (typeof arg === "string") return str(arg);
-  else if (typeof arg === "function" && validName(arg.name))
-    return sym(arg.name);
-  else throw new Error(`invalid rule: '${arg}`);
+  else if (typeof arg === "function") {
+    if (validName(arg.name)) return sym(arg.name);
+    else
+      throw new Error(
+        `invalid name for a function-rule: '${arg.name}' for '${arg}'`
+      );
+  } else throw new Error(`invalid rule: '${arg}'`);
 }
 
 /**
