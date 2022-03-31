@@ -11,7 +11,7 @@ import {
   RepeatRule,
   TokenRule,
   GrammarSchema
-} from "./types";
+} from "../types";
 
 interface ExtendedReferenceError extends ReferenceError {
   symbol: any;

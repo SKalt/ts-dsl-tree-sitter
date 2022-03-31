@@ -1,22 +1,19 @@
-const dslPort = require("../src/dsl.ts");
-const vm = require("vm");
-const fs = require("fs");
-const path = require("path");
+import * as legacy from "../src/legacy/dsl";
 
 describe("the port of the v1 DSL to typescript", () => {
   beforeEach(() => {
-    global.alias = dslPort.alias;
-    global.blank = dslPort.blank;
-    global.choice = dslPort.choice;
-    global.field = dslPort.field;
-    global.grammar = dslPort.grammar;
-    global.optional = dslPort.optional;
-    global.prec = dslPort.prec;
-    global.repeat = dslPort.repeat;
-    global.repeat1 = dslPort.repeat1;
-    global.seq = dslPort.seq;
-    global.sym = dslPort.sym;
-    global.token = dslPort.token;
+    global.alias = legacy.alias;
+    global.blank = legacy.blank;
+    global.choice = legacy.choice;
+    global.field = legacy.field;
+    global.grammar = legacy.grammar;
+    global.optional = legacy.optional;
+    global.prec = legacy.prec;
+    global.repeat = legacy.repeat;
+    global.repeat1 = legacy.repeat1;
+    global.seq = legacy._seq;
+    global.sym = legacy.sym;
+    global.token = legacy.token;
   });
   afterEach(() => {
     delete global.alias;
@@ -52,9 +49,10 @@ describe("the port of the v1 DSL to typescript", () => {
     });
   });
 });
-const { seq, pattern, makeNamedFunction } = require("../src/v2/rules.ts");
 
-const jsonOf = x => JSON.parse(JSON.stringify(x));
+import { seq, pattern, makeNamedFunction } from "../src/functional";
+
+const jsonOf = x => JSON.parse(JSON.stringify(x)); // strip SYMBOLs
 
 describe("v2 api", () => {
   describe("dsl", () => {
