@@ -6,7 +6,7 @@
     "target": "es6",
     "resolveJsonModule": true,
     "module": "CommonJS",
-    "lib": ["es6"],
+    "lib": ["es2020"],
     "importHelpers": true,
     "declaration": true,
     "sourceMap": true,
@@ -27,7 +27,6 @@
     "paths": {
       "*": ["src/*", "node_modules/*"]
     },
-    "jsx": "react",
     "esModuleInterop": true,
     "outDir": "dist"
   }
