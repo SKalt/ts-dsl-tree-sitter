@@ -39,8 +39,8 @@ describe("the port of the v1 DSL to typescript", () => {
     "javascript",
     "toml",
     "lua",
-    "typescript/typescript"
-  ].forEach(lang => {
+    "typescript/typescript",
+  ].forEach((lang) => {
     test(`correctly processed tree-sitter-${lang}`, () => {
       const mod = `tree-sitter-${lang}`;
       const actual = require(`${mod}/grammar.js`);
@@ -52,51 +52,51 @@ describe("the port of the v1 DSL to typescript", () => {
 
 import { seq, pattern, makeNamedFunction } from "../src/functional";
 
-const jsonOf = x => JSON.parse(JSON.stringify(x)); // strip SYMBOLs
+const jsonOf = (x) => JSON.parse(JSON.stringify(x)); // strip SYMBOLs
 
 describe("v2 api", () => {
   describe("dsl", () => {
     it("pattern", () => {
       expect(jsonOf(pattern(/a?b/gi))).toEqual({
         type: "PATTERN",
-        value: "a?b"
+        value: "a?b",
       });
     });
     describe("making custom named functions", () => {
-      it('works with valid names', () => {
-        let name = 'foo';
-        expect(makeNamedFunction(name).name).toEqual(name)
-      })
-    })
+      it("works with valid names", () => {
+        let name = "foo";
+        expect(makeNamedFunction(name).name).toEqual(name);
+      });
+    });
     describe("seq", () => {
       it("works with string literals", () => {
         expect(jsonOf(seq("a", "b"))).toEqual({
           type: "SEQ",
           members: [
-            { type: "STRING", value: "a",  },
-            { type: "STRING", value: "b",  }
-          ]
+            { type: "STRING", value: "a" },
+            { type: "STRING", value: "b" },
+          ],
         });
       });
       it("works with regex literals", () => {
         expect(jsonOf(seq(/ab/, /cb/))).toEqual({
           type: "SEQ",
           members: [
-            { type: "PATTERN", value: "ab", },
-            { type: "PATTERN", value: "cb", }
-          ]
+            { type: "PATTERN", value: "ab" },
+            { type: "PATTERN", value: "cb" },
+          ],
         });
       });
       it("works with functions", () => {
-        const foo = () => /a/ // a valid grammar
+        const foo = () => /a/; // a valid grammar
         expect(jsonOf(seq(foo, "b"))).toEqual({
           type: "SEQ",
           members: [
             { type: "SYMBOL", name: "foo" },
-            { type: "STRING", value: "b" }
+            { type: "STRING", value: "b" },
           ],
         });
-      })
+      });
     });
   });
 });

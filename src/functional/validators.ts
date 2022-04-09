@@ -4,16 +4,15 @@ import { RuleType, GrammarSchema } from "../types";
 type Namespace = Record<string, any>;
 type Fn<Arg, Result> = (arg: Arg, namespace: Namespace, log: Error[]) => Result;
 
-const checkThat = <T>(
-  check: Fn<T, boolean>,
-  errorMessage: Fn<T, string>
-): Fn<T, boolean> => (arg, namespace, errors) => {
-  if (check(arg, namespace, errors)) return true;
-  else {
-    log(errors)(errorMessage(arg, namespace, errors));
-    return false;
-  }
-};
+const checkThat =
+  <T>(check: Fn<T, boolean>, errorMessage: Fn<T, string>): Fn<T, boolean> =>
+  (arg, namespace, errors) => {
+    if (check(arg, namespace, errors)) return true;
+    else {
+      log(errors)(errorMessage(arg, namespace, errors));
+      return false;
+    }
+  };
 
 const checkArray = (ctx: string) =>
   checkThat(
@@ -21,12 +20,10 @@ const checkArray = (ctx: string) =>
     () => `invalid ${ctx}: must be an array`
   );
 
-const fallback = <I, O>(
-  revertTo: O,
-  check: Fn<I, boolean>,
-  fn: Fn<I, O>
-): Fn<I, O> => (arg, ...params) =>
-  check(arg, ...params) ? fn(arg, ...params) : revertTo;
+const fallback =
+  <I, O>(revertTo: O, check: Fn<I, boolean>, fn: Fn<I, O>): Fn<I, O> =>
+  (arg, ...params) =>
+    check(arg, ...params) ? fn(arg, ...params) : revertTo;
 
 const validSymbolName: Fn<any, boolean> = checkThat(
   validName,
@@ -35,10 +32,11 @@ const validSymbolName: Fn<any, boolean> = checkThat(
 
 const log = (errors: Error[]) => (msg: string) => errors.push(new Error(msg));
 
-const canBeUndefined = <Arg, Result>(fallback: Result) => (
-  fn: Fn<Arg, Result>
-): Fn<any, Result> => (arg, namespace, errors) =>
-  arg ? fn(arg, namespace, errors) : fallback;
+const canBeUndefined =
+  <Arg, Result>(fallback: Result) =>
+  (fn: Fn<Arg, Result>): Fn<any, Result> =>
+  (arg, namespace, errors) =>
+    arg ? fn(arg, namespace, errors) : fallback;
 
 const shouldBeAnArray = <R>(context: string, to: R, fn: Fn<any[], R>) =>
   fallback(to, checkArray(context), fn);
@@ -60,19 +58,18 @@ const normalizable: Fn<any, Rule | false> = (arg, _, errors) => {
   try {
     return normalize(arg);
   } catch (e) {
-    log(errors)(e);
+    log(errors)(String(e));
     return false;
   }
 };
 
-const shouldCheckNamespace = (fn: Fn<string, any>): Fn<Rule, any> => (
-  rule,
-  ...params
-) => {
-  if (rule.type === RuleType.ALIAS) return fn(rule.value, ...params);
-  if (rule.type === RuleType.SYMBOL) return fn(rule.name, ...params);
-  return;
-};
+const shouldCheckNamespace =
+  (fn: Fn<string, any>): Fn<Rule, any> =>
+  (rule, ...params) => {
+    if (rule.type === RuleType.ALIAS) return fn(rule.value, ...params);
+    if (rule.type === RuleType.SYMBOL) return fn(rule.name, ...params);
+    return;
+  };
 
 const nameInNamespace = (context: string): Fn<string, boolean> =>
   checkThat(
@@ -232,6 +229,7 @@ export function grammar<
     rules: validateRules(options.rules, ...params),
     inline: validateInlines(options.inline, ...params),
     extras: validateExtras(options.extras, ...params),
+    precedences: [], // TODO: add precedences
     conflicts: validateConflicts(options.conflicts, ...params),
     word: validateWord(options.word, ...params),
     supertypes: validateSupertypes(options.supertypes, ...params),

@@ -95,7 +95,7 @@ export const optional = (value: RuleOrLiteral): Rule<Choice> => {
  * @param value
  * @param rule
  */
-export const prec = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
+export const prec = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC,
   value,
   content: normalize(rule),
@@ -109,7 +109,7 @@ export const prec = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
  * @param value
  * @param rule
  */
-prec.left = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
+prec.left = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_LEFT,
   value,
   content: normalize(rule),
@@ -134,7 +134,7 @@ prec.right = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
  * @param value
  * @param rule
  */
-prec.dynamic = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
+prec.dynamic = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_DYNAMIC,
   value,
   content: normalize(rule),
