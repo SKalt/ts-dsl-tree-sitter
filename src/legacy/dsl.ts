@@ -10,7 +10,9 @@ import {
   Repeat1Rule,
   RepeatRule,
   TokenRule,
-  GrammarSchema
+  GrammarSchema,
+  RuleType,
+  StringRule,
 } from "../types";
 
 interface ExtendedReferenceError extends ReferenceError {
@@ -27,6 +29,7 @@ interface GrammarMaker<
   externals?: ($: E, original?: Rule[]) => Array<RawRule>;
   rules: { [K in keyof R]: ($: E & R, original?: Rule) => RawRule };
   extras?: ($: E & R, original?: Rule[]) => Array<RawRule>;
+  precedences?: ($: E & R) => Array<string | SymbolRule>[];
   conflicts?: ($: E & R, original?: SymbolRule[][]) => Array<Array<RawRule>>;
   inline?: ($: E & R, original?: Rule[]) => Array<RawRule>;
   word?: ($: E & R, original?: string) => SymbolRule;
@@ -41,7 +44,7 @@ function alias(
     type: Type.ALIAS,
     content: normalize(rule),
     named: false,
-    value: ""
+    value: "",
   };
   if (typeof value == "string") {
     return { ...result, named: false, value };
@@ -61,14 +64,14 @@ function field(name: string, rule: RawRule): FieldRule {
   return {
     type: Type.FIELD,
     name: name,
-    content: normalize(rule)
+    content: normalize(rule),
   };
 }
 
 function choice(...elements: RawRule[]): ChoiceRule {
   return {
     type: Type.CHOICE,
-    members: elements.map(normalize)
+    members: elements.map(normalize),
   };
 }
 
@@ -84,11 +87,11 @@ function prec(number: number, rule: RawRule): PrecRule {
   return {
     type: Type.PREC,
     value: number,
-    content: normalize(rule)
+    content: normalize(rule),
   };
 }
 
-prec.left = function(number: number | RawRule, rule?: RawRule): PrecRule {
+prec.left = function (number: number | RawRule, rule?: RawRule): PrecRule {
   // TODO: type ^rule
   if (rule === undefined) {
     rule = number as RawRule; // FIXME: this should include a better type guard.
@@ -105,11 +108,11 @@ prec.left = function(number: number | RawRule, rule?: RawRule): PrecRule {
   return {
     type: Type.PREC_LEFT,
     value: number as number,
-    content: normalize(rule)
+    content: normalize(rule),
   };
 };
 
-prec.right = function(number: number | RawRule, rule?: RawRule): PrecRule {
+prec.right = function (number: number | RawRule, rule?: RawRule): PrecRule {
   if (rule == null) {
     rule = number as RawRule;
     number = 0;
@@ -124,11 +127,11 @@ prec.right = function(number: number | RawRule, rule?: RawRule): PrecRule {
   return {
     type: Type.PREC_RIGHT,
     value: number as number,
-    content: normalize(rule)
+    content: normalize(rule),
   };
 };
 
-prec.dynamic = function(number: number, rule: RawRule): PrecRule {
+prec.dynamic = function (number: number, rule: RawRule): PrecRule {
   checkPrecedence(number);
   checkArguments(
     arguments.length - 1,
@@ -139,7 +142,7 @@ prec.dynamic = function(number: number, rule: RawRule): PrecRule {
   return {
     type: Type.PREC_DYNAMIC,
     value: number,
-    content: normalize(rule)
+    content: normalize(rule),
   };
 };
 
@@ -147,7 +150,7 @@ function repeat(rule: RawRule): RepeatRule {
   checkArguments(arguments.length, "repeat");
   return {
     type: Type.REPEAT,
-    content: normalize(rule)
+    content: normalize(rule),
   };
 }
 
@@ -155,14 +158,14 @@ function repeat1(rule: RawRule): Repeat1Rule {
   checkArguments(arguments.length, "repeat1");
   return {
     type: Type.REPEAT1,
-    content: normalize(rule)
+    content: normalize(rule),
   };
 }
 
 function seq(...elements: RawRule[]) {
   return {
     type: Type.SEQ,
-    members: elements.map(normalize)
+    members: elements.map(normalize),
   };
 }
 
@@ -176,14 +179,14 @@ function sym(name: string): SymbolRule {
 function token(value: RawRule): TokenRule {
   return {
     type: Type.TOKEN,
-    content: normalize(value)
+    content: normalize(value),
   };
 }
 
-token.immediate = function(value: RawRule): TokenRule {
+token.immediate = function (value: RawRule): TokenRule {
   return {
     type: Type.IMMEDIATE_TOKEN,
-    content: normalize(value)
+    content: normalize(value),
   };
 };
 
@@ -213,7 +216,7 @@ function RuleBuilder(ruleMap?: object | null) {
       get(_, propertyName: string) {
         const symbol = {
           type: Type.SYMBOL,
-          name: propertyName
+          name: propertyName,
         };
 
         if (!ruleMap || ruleMap.hasOwnProperty(propertyName)) {
@@ -225,7 +228,7 @@ function RuleBuilder(ruleMap?: object | null) {
           );
           return error;
         }
-      }
+      },
     }
   );
 }
@@ -245,10 +248,11 @@ function _grammar<
     rules: {},
     extras: [normalize(/\s/)],
     conflicts: [],
+    precedences: [],
     externals: [], // TODO: check this type.
     inline: [],
     supertypes: [],
-    word: ""
+    word: "",
   };
 
   function processExternals(
@@ -328,6 +332,47 @@ function _grammar<
     return extras(ruleBuilder, original).map(normalize);
   }
 
+  function procesPrecedences(
+    baseGrammar: GrammarSchema,
+    options: GrammarMaker<E, R>,
+    ruleBuilder: E & R
+  ) {
+    if (options.precedences === undefined) return baseGrammar.precedences;
+    if (typeof options.precedences !== "function") {
+      throw new Error("Grammar's 'supertypes' property must be a function.");
+    }
+    const precedences = options.precedences(ruleBuilder);
+    if (Array.isArray(precedences)) {
+      const errors = [] as string[];
+      const result = [] as Array<StringRule | SymbolRule>[];
+      precedences.forEach((group, i) => {
+        if (!Array.isArray(group)) {
+          return errors.push(`precedences[${i}] is not an array`);
+        }
+        const groupResult = [] as Array<StringRule | SymbolRule>;
+        group.forEach((el, j) => {
+          const rule = normalize(el); // can throw
+          switch (rule.type) {
+            case RuleType.STRING:
+            case RuleType.SYMBOL:
+              return groupResult.push(rule);
+            default:
+              return errors.push(
+                `precedences[${i}][${j}] must be a string or symbol: ${rule}`
+              );
+          }
+        });
+        return result.push(groupResult);
+      });
+      if (errors.length > 0) throw new Error(errors.join("\n"));
+      return result;
+    } else {
+      throw new Error(
+        "Grammar's precedences must be an array of arrays of rules."
+      );
+    }
+  }
+
   function processWord(
     { word: original = "" }: GrammarSchema,
     { word }: GrammarMaker<E, R>,
@@ -350,16 +395,16 @@ function _grammar<
     mustBeFunction("conflicts", conflicts);
     const conflictRules = conflicts(
       ruleBuilder,
-      original.map(conflict => conflict.map(sym))
+      original.map((conflict) => conflict.map(sym))
     );
     const errorMessage =
       "Grammar's conflicts must be an array of arrays of rules.";
     if (!Array.isArray(conflictRules)) throw new Error(errorMessage);
 
-    return conflictRules.map(conflictSet => {
+    return conflictRules.map((conflictSet) => {
       if (!Array.isArray(conflictSet)) throw new Error(errorMessage);
       const result = conflictSet.map(
-        symbol => (normalize(symbol) as SymbolRule).name
+        (symbol) => (normalize(symbol) as SymbolRule).name
       );
       return result;
     });
@@ -379,7 +424,7 @@ function _grammar<
       throw new Error("Grammar's 'inline' property must be an array of rules.");
     }
 
-    return inlineRules.map(symbol => symbol.name);
+    return inlineRules.map((symbol) => symbol.name);
   }
 
   function processSupertypes(
@@ -396,7 +441,7 @@ function _grammar<
     if (!Array.isArray(supertypeRules)) {
       throw new Error("Grammar's supertypes must be an array of rules.");
     }
-    return supertypeRules.map(rule => {
+    return supertypeRules.map((rule) => {
       if ("name" in rule) return rule.name;
       else
         throw new Error(
@@ -409,7 +454,9 @@ function _grammar<
   const ruleMap = [
     ...Object.keys(baseGrammar.rules),
     ...Object.keys(options.rules),
-    ...externals.map(rule => ("name" in rule ? rule.name : "")).filter(Boolean)
+    ...externals
+      .map((rule) => ("name" in rule ? rule.name : ""))
+      .filter(Boolean),
   ].reduce((ruleMap: { [x: string]: true }, ruleName: string) => {
     ruleMap[ruleName] = true;
     return ruleMap;
@@ -419,6 +466,7 @@ function _grammar<
 
   const rules = processRules(baseGrammar, options, ruleBuilder);
   const extras = procesExtras(baseGrammar, options, ruleBuilder);
+  const precedences = procesPrecedences(baseGrammar, options, ruleBuilder);
   const supertypes = processSupertypes(baseGrammar, options, ruleBuilder);
   const word = processWord(baseGrammar, options, ruleBuilder);
   const conflicts = processConflicts(baseGrammar, options, ruleBuilder);
@@ -428,10 +476,11 @@ function _grammar<
     ...(word ? { word } : {}),
     rules,
     extras,
+    precedences,
     conflicts,
     externals,
     inline,
-    supertypes
+    supertypes,
   };
 }
 
@@ -440,7 +489,7 @@ function checkArguments(ruleCount: number, callerName: string, suffix = "") {
     throw new Error(
       [
         `The \`${callerName}\` function only takes one rule argument${suffix}.`,
-        "You passed multiple rules. Did you mean to call `seq`?\n"
+        "You passed multiple rules. Did you mean to call `seq`?\n",
       ].join("\n")
     );
   }
