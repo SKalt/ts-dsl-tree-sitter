@@ -20,12 +20,8 @@ export const validName = (name: any): name is string =>
   typeof name === "string" && /^[a-zA-Z_]\w*/.test(name);
 
 export type Rule<R extends AnyRule = AnyRule> = R;
-export type RuleOrLiteral =
-  | string
-  | RegExp
-  | Rule
-  | ((...args: any[]) => Rule)
-  | (() => string | RegExp | Rule);
+export type RuleRef = (...args: any[]) => RuleOrLiteral;
+export type RuleOrLiteral = string | RegExp | Rule | RuleRef;
 
 /**
  * This function causes the given rule to appear with an alternative name in the syntax tree.
@@ -189,7 +185,7 @@ export const token = (value: RuleOrLiteral): Rule<Token> => ({
   content: normalize(value),
 });
 
-token.immediate = (value: RuleOrLiteral): Rule<Token> => ({
+token.immediate = (value: string | RegExp): Rule<Token> => ({
   type: RuleType.IMMEDIATE_TOKEN,
   content: normalize(value),
 });

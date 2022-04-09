@@ -1,5 +1,13 @@
-import { RuleOrLiteral, Rule, normalize, isRule, validName } from "./rules";
-import { RuleType, GrammarSchema } from "../types";
+import {
+  RuleOrLiteral,
+  Rule,
+  normalize,
+  isRule,
+  validName,
+  RuleRef,
+  str,
+} from "./rules";
+import { RuleType, GrammarSchema, StringRule, SymbolRule } from "../types";
 // needed to distinguish the "Rule" types from ./rules and ./types
 type Namespace = Record<string, any>;
 type Fn<Arg, Result> = (arg: Arg, namespace: Namespace, log: Error[]) => Result;
@@ -14,12 +22,18 @@ const checkThat =
     }
   };
 
-const checkArray = (ctx: string) =>
-  checkThat(
+const checkArray = <T>(ctx: string) =>
+  checkThat<T>(
     (arg) => Array.isArray(arg),
     () => `invalid ${ctx}: must be an array`
   );
-
+/**
+ *
+ * @param revertTo a fallback value
+ * @param check a
+ * @param fn a callback to run if check(arg) passes
+ * @returns
+ */
 const fallback =
   <I, O>(revertTo: O, check: Fn<I, boolean>, fn: Fn<I, O>): Fn<I, O> =>
   (arg, ...params) =>
@@ -37,9 +51,18 @@ const canBeUndefined =
   (fn: Fn<Arg, Result>): Fn<any, Result> =>
   (arg, namespace, errors) =>
     arg ? fn(arg, namespace, errors) : fallback;
-
-const shouldBeAnArray = <R>(context: string, to: R, fn: Fn<any[], R>) =>
-  fallback(to, checkArray(context), fn);
+/**
+ *
+ * @param context the name of the context for error messages
+ * @param to
+ * @param fn
+ * @returns an array
+ */
+const shouldBeAnArray = <R>(
+  context: string,
+  to: R,
+  fn: Fn<any[], R>
+): Fn<any[], R> => fallback(to, checkArray(context), fn);
 
 const shouldBeAnObject = <R>(context: string, to: R, fn: Fn<Namespace, R>) =>
   fallback(
@@ -202,6 +225,42 @@ const validateWord: Fn<any, string | undefined> = (word, ...params) => {
   }
 };
 
+type PrecArray = (StringRule | SymbolRule)[][];
+const validatePrecedences = canBeUndefined<(string | RuleRef)[][], PrecArray>(
+  []
+)(
+  shouldBeAnArray("precedences", [] as PrecArray, (arr, ...params) => {
+    return arr.map((group, i) =>
+      shouldBeAnArray(`precedences[${i}]`, [], (group, ns, errs) => {
+        const results: (StringRule | SymbolRule)[] = [];
+        group.forEach((el, j) => {
+          let result = normalizable(el, ...params);
+          const context = `precedences[${i}][${j}]`;
+          if (!result) {
+            const last = errs[errs.length - 1];
+            last.message = `invalid element ${context}: ${last.message}`;
+            return;
+          } else {
+            switch (result.type) {
+              case RuleType.STRING:
+                return results.push(result);
+              case RuleType.SYMBOL:
+                return nameInNamespace(context)(result.name, ns, errs)
+                  ? results.push(result)
+                  : null;
+              default:
+                return log(errs)(
+                  `invalid element ${context}: should be a string or symbol, not ${result.type}`
+                );
+            }
+          }
+        });
+        return results;
+      })(group, ...params)
+    );
+  })
+);
+
 export function grammar<
   E extends Record<string, RuleOrLiteral> = {},
   R extends {
@@ -213,6 +272,7 @@ export function grammar<
   externals?: E;
   rules: R;
   word?: string;
+  precedences?: Array<Array<NameInNamespace>>;
   supertypes?: Array<NameInNamespace>;
   inline?: Array<NameInNamespace>;
   extras?: RuleOrLiteral[];
@@ -229,7 +289,7 @@ export function grammar<
     rules: validateRules(options.rules, ...params),
     inline: validateInlines(options.inline, ...params),
     extras: validateExtras(options.extras, ...params),
-    precedences: [], // TODO: add precedences
+    precedences: validatePrecedences(options.precedences, ...params),
     conflicts: validateConflicts(options.conflicts, ...params),
     word: validateWord(options.word, ...params),
     supertypes: validateSupertypes(options.supertypes, ...params),
