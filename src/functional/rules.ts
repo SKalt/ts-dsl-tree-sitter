@@ -116,7 +116,7 @@ prec.left = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
  * @param value
  * @param rule
  */
-prec.right = (value: number = 0, rule: RuleOrLiteral): Rule<Prec> => ({
+prec.right = (rule: RuleOrLiteral, value: number = 0): Rule<Prec> => ({
   type: RuleType.PREC_RIGHT,
   value,
   content: normalize(rule),
