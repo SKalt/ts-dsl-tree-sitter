@@ -56,4 +56,6 @@ tree-sitter generate ./src/grammar.json
 
 ### Design, trade-offs, and downsides.
 
-Dropping `$ => $.rule_name` in favor of direct function references means typescript can't check for rules to referencing other rules that aren't part of the `rules` object in a grammar defintion. Instead, that check happens at runtime. 
+Dropping `$ => $.rule_name` in favor of direct function references means typescript can't check for rules to referencing other rules that aren't part of the `rules` object in a grammar defintion. Instead, that check happens at JS runtime, prior to invoking the tree-sitter cli.
+
+Also, ts => js compilation can mangle function names if minification is configured.
